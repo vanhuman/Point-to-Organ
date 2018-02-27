@@ -3,18 +3,25 @@ Robert van Heumen (c) 2017
 Inspired by the Pixel Boxes of the installation 'Macroworld: One Hours3 and Canned 2002' by Angela Bulloch
 http://www.depont.nl/collectie/kunstenaars/kunstenaar/werk_id/953/kunstenaar/bulloch-1/
 http://www.gms.be/index.php?content=artist_detail&id_artist=11
-
-To do:
-quantizering
-
 */
 
 // get suggested ratio and screen dimensions
 MyScreens.getSuggestedRatio(presentationScreen: 1, maxNbrX: 8);
 
+/*
+registers Sauer
+pedalen: 16’ contrabass, subbass
+manuaal 1: wit: flute harmonique, dulciana / roze: aeoline, fugara
+manuaal 2: paars: rohrfote / geel: violine, traversflote, flautino
+*/
+
+
 (
 // set buffersize
 s.options.hardwareBufferSize_(1024); ("Buffersize set to"+Server.local.options.hardwareBufferSize).postln;
+
+// set MIDI output device
+~midiOutDevice = "MUL";
 
 s.waitForBoot {
 
@@ -27,18 +34,25 @@ s.waitForBoot {
 	// // screenWidth = 1280, screenHeight = 1024, nbrX = 5, nbrY = 4, nbrXalt = 50, nbrYalt = 40, topSubtract = 0, leftSubtract = 0;
 	// screenWidth = 1280, screenHeight = 700, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -30, leftSubtract = -10;
 
-	var // 1280 x 800 (laptop) (8 x 5) as presentation screen placed below main screen
-	screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = screenHeight, leftSubtract = 0;
-	// screenWidth = 1280, screenHeight = 800, nbrX = 7, nbrY = 4, nbrXalt = 35, nbrYalt = 20, topSubtract = screenHeight, leftSubtract = 0;
+	// var // 1280 x 800 (laptop) (8 x 5) as presentation screen placed below main screen
+	// screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = screenHeight, leftSubtract = 0;
+	// // screenWidth = 1280, screenHeight = 800, nbrX = 7, nbrY = 4, nbrXalt = 35, nbrYalt = 20, topSubtract = screenHeight, leftSubtract = 0;
 
 	// var // 1280 x 800 (laptop) (8 x 5) as presentation screen on main screen
 	// // screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = 0, leftSubtract = 0;
+	// // smaller version:
 	// screenWidth = 1280, screenHeight = 450, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -50, leftSubtract = 200;
 
 	// var // 1920 x 1080 (16 x 9) as presentation screen placed below main screen 7 x 4 ------ beamer STEIM
 	// screenWidth = 1920, screenHeight = 1080, nbrX = 7, nbrY = 4, nbrXalt = 70, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
+	var // 1024 x 768 (8 x 5) as presentation screen placed below main screen ----- beamer Orgelpark
+	screenWidth = 1024, screenHeight = 768, nbrX = 8, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
+
+	var leftCueSubtract = 700;
+
 	var // config variables -------
+	randomClearToBlack = false, // whether screen should be cleared to black randomly on scoreMode change
 	boxesHasBorder = false, // whether boxes window has border
 	setLength = 20*60, // length set in seconds; after this number of seconds taskMain is stopped
 	pitchThreshold = 0.5, // under this waitTime value there is no pitchshift in the sound
@@ -50,46 +64,50 @@ s.waitForBoot {
 	colorsMin = [5,20,5,2,2], colorsMax = [15,40,15,4,5], // wide, mellow, all, b/w, bright
 	addOctave = 1, // add sine an octave higher
 	soundOn = 1, // main switch to test with and without sound
+	midiOn = 1, // main switch to test with and without MIDI
 	testChangeAllBoxes = 0, // change all boxes at once all the time, just for testing
+	testChangeOneBox = 0, // change only one box at a time, for testing
 	allowJokerDefault = 1, // infrequently changing all boxes, also overridden for some scoreModes
-	superModeEnabled = 1, // infrequently switching to superfast changes
+	superModeEnabled = 0, // infrequently switching to superfast changes
 	superModeSpeed = 0.03, // speed when in superMode
 	superModeTime = 20, // time in secs before going out of superMode
-	ultraModeEnabled = 1, // infrequently switching to ultrafast changes
+	ultraModeEnabled = 0, // infrequently switching to ultrafast changes
 	ultraModeSpeed = 0.001, // speed when in ultraMode
 	ultraModeTime = 30, // time in secs before going out of ultraMode
 	exciterModeTime = 20, // time in secs before going out of exciterMode
 	exciterModeSpeed = 0.1, // speed when in exciterMode
 	yellowButtonTime = 60, // time in secs that the yellow button is disabled after jumping out of exciterMode
-	monoChromeDeviation = [0.2,0.2,0.2,0.5], // deviation from 0 values for red, green, blue, yellow in color, line, square scenes
+	monoChromeDeviation = [0.4,0.4,0.4,0.5], // deviation from 0 values for red, green, blue, yellow in color, line, square scenes
 	synthList = [\threeSines, \threeTris, \threeSinesDist, \primeBocAdCirc, \sineNoiseSaw],
 	synthSoundLimit = [30,30,30,15,30], // no more than this number of boxes are 'sounding' for these synths
+	nbrMIDILimit = 5, // no more than this number of boxes are playing as MIDI (so max MIDI notes is 3x this number)
 	synthPitchShift = [1,1,1,1,1], // 1=apply pitchshift when all boxes are changing
 	synthFreqMaps = [\uniform,\spread,\spreadNarrow], // mappings selecting spec.freq
 	scoreModeList = [\default, \red, \green, \blue, \yellow, \redFull, \greenFull, \blueFull, \yellowFull, \blackwhite, \greyscale, \sequence, \lines,\mellow,\squares,\single, \demo],
 	scoreModeWeight = [ 1, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5, 0.6, 0].normalizeSum,
 	scoreModeLengthDefault = [ 1, 0.5, 0.5, 0.5, 0.3, 0.6, 0.6, 0.6, 0.4, 0.4, 0.5, 0.5, 0.5, 0.8, 0.5, 0.4, 1 ],
-	dataDir = Document.dir++"Point-to-Line/Data/",
+	dataDir = Document.dir++"Point-to-Organ/Data/",
 	// display -------
-	live = 0, // values 0,1,2 to show GUI controls, iControls image, setlist
+	live = 2, // values 0,1,2 to show GUI controls, iControls image, setlist
 	franceActive = 0, // whether to display France images as watermark
 	franceFreq = 200, // image will shine through every franceFreq time (and dependent on random)
 	frameOffset = 0, // set to 100 or something like that to show wooden frame
 	noiseChance = 0.01, // chance for a noise image to be shown
 	overlap = 0, // pixels for box overlap
-	showConfigWindow = 1, // show config window
+	showConfigWindow = true, // show config window
+	showCueWindow = false, // show cue window
 	showParams = 0, // show parameters onscreen
 	displayBoxText = 0, // set to 1 to display numbers in order in which the boxes change for testing
 	// defaults per view -------
 	// rgbSynth = \threeSines, synthFreqMap = \spread, runAutomatic = 1, waitTime = 2, // view 1
-	rgbSynth = \threeTris, synthFreqMap = \spreadNarrow, runAutomatic = 1, waitTime = 2, // view 2
+	rgbSynth = \threeTris, synthFreqMap = \spreadNarrow, runAutomatic = 0, waitTime = 3, // view 2
 	// rgbSynth = \threeSines, synthFreqMap = \spreadNarrow, runAutomatic = 1, waitTime = 2, // view 3
 	// rgbSynth = \threeSines, synthFreqMap = \spreadNarrow, runAutomatic = 0, waitTime = 2, // live
 	// other defaults -------
-	outBus = 0, outBusMonitor = nil, // output busses, set outBusMonitor = nil for no monitoring
+	outBus = 0, outBusMonitor = 8, // output busses, set outBusMonitor = nil for no monitoring
 	timeFactor = 1, // multipliction factor for runtimes in automatic mode
 	fadeTime = waitTime / 2,
-	scoreMode = \default, // default scoreMode
+	scoreMode = \red, // default scoreMode
 	startTaskMain = 0, // whether to start the task on running the code
 	doubleskipchance = 0.1, // chance for either double of skip to occur
 	playSound = 1, // switch depending on waitTime
@@ -125,23 +143,40 @@ s.waitForBoot {
 	var taskMainTime = 0, blinkWait, synthCount, metaJumpOut = 0, taskMainRunning = 0, singleRand, scoreModeChanged;
 	var waitTimeSign = -1, wDummy, tSetlist = Array.newClear(3), fRandom;
 	var waitTimeOverride = 0, waitTimeBeforeOverride = waitTime, fadeTimeBeforeOverride = fadeTime, doubleOverride = 0;
-	var setlist = ["Setlist De Pont:",
-		"1 sequence
-2 redFull
-3 green/yellow interruptions
-4 green
-5 yellow, stay same speed
-6 superMode
-7 single, increase speed to 1
-8 squares" ,
-		"9 lines, increase speed to 0.2
-10 mellow, jump to slow speed
-11 back to 2 sec
-12 blue
-13 exciterMode
-14 greyscale
-15 red & slow
-16 sometimes clear to black"
+	var fPlayMIDI, iconID, midiNotes = Array.fill(127,0)!3, fStopAllNotes, fCountMIDI, fShowKeyShortcuts;
+	var noteSet = {Set.new()}!3, noteSetNumber = {Array.fill(12,0)}!3, rgbLabel = [\red, \green, \blue];
+	var wCue, tCue, lCue, cueBlinkColor = Color.blue, cueColor = Color.white, cueTextColor = Color.black, cueBlinkTextColor = Color.white;
+	var cueBlinkNumber = 10, cueBlinkWait = 0.5, cueBlinkTask;
+	var changeBlocksOverride = false, changeSingleOverride = false, midiNoteFactor = 1;
+	// var setlist = ["Setlist De Pont:",
+	// 	"1 sequence
+	// 	2 redFull
+	// 	3 green/yellow interruptions
+	// 	4 green
+	// 	5 yellow, stay same speed
+	// 	6 superMode
+	// 	7 single, increase speed to 1
+	// 	8 squares" ,
+	// 	"9 lines, increase speed to 0.2
+	// 	10 mellow, jump to slow speed
+	// 	11 back to 2 sec
+	// 	12 blue
+	// 	13 exciterMode
+	// 	14 greyscale
+	// 	15 red & slow
+	// 	16 sometimes clear to black"
+	// ];
+	var setlist = ["Setlist Orgelpark:",
+		"1. red # 0:00
+2. green # 1:30
+3. blueFull # 2:30
+4. mellow met blokken # 3:30
+5. single # 5:30
+6. blackwhite short Sauer notes # 7:00" ,
+		"7. greyscale no synthesis # 8:30
+8. lines # 10:00
+9. yellowFull speed up system # 12:00
+10. red slow down, black out, spread out"
 	];
 
 	var spec = (
@@ -418,7 +453,8 @@ s.waitForBoot {
 
 	// ------- GUI part 1 boxes window ------------------------------------------------------------------------------------
 
-	wBoxes = Window.new("Point-to-Line Boxes", Rect(rect.left - leftSubtract, rect.top - topSubtract, rect.width, rect.height), border: boxesHasBorder);
+	wBoxes = Window.new("Point-to-Organ Boxes", Rect(rect.left - leftSubtract, rect.top - topSubtract, rect.width, rect.height),
+		border: boxesHasBorder);
 	wBoxes.view.background_(Color.white);
 	if(frameOffset > 0, {
 		wBoxes.view.backgroundImage_( Image.new(dataDir++"Images/frame"++rect.width++"x"++rect.height++".png") );
@@ -469,6 +505,40 @@ s.waitForBoot {
 	);
 
 	// ------- functions ------------------------------------------------------------------------------------
+
+	// display keyboard shortcuts
+	fShowKeyShortcuts = {
+		"\nKeyboad shortcuts:\n
+R: Run/stop
+A: Automatic
+F: Shuffle score
+L: Switch live modes
+K: Stop and reset clock
+
+Z: Force change 1 or 2 boxes
+X: Force change block of boxes
+C: Force change all boxes
+
+S: SuperMode
+U: UltraMode
+E: ExciterMode
+
+N: Next scoreMode in automatic
+B: Clear to black
+W: Clear to white
+Y: Set mode to yellow
+D: Double/half override
+T: Display time
+O: Watermark override
+P: Show params onscreen
+i: Save screenshot
+1: Display random boxes
+M: Display MIDI count
+
+Cmd-P: MIDI panic: stop all
+Alt 1 .. 8 and Q .. I: load presets\n
+".postln;
+	};
 
 	// function to create the score
 	fShuffleScore = {
@@ -681,7 +751,7 @@ s.waitForBoot {
 			allowJoker = 0;
 
 			// select tuples
-			singleRand = rrand(2,5);
+			singleRand = rrand(2,3);
 			if(waitTime > speedThreshold, { ("ScoreMode Single: choosing" + singleRand + "tuples").postln });
 			tuplesSingle = [(0..(nbrY-1)), (0..(nbrX-1))].allTuples.scramble.takeThese({arg item, index; index >= singleRand});
 		}
@@ -831,6 +901,7 @@ s.waitForBoot {
 		;
 
 		if(testChangeAllBoxes == 1, { colorScoreNbr = [nbrY*nbrX, nbrY*nbrX - 1] }); // test change all boxes
+		if(testChangeOneBox == 1, { colorScoreNbr = [1] }); // test change just one
 
 		colorScore = [colorScoreNbr, colorScoreLo, colorScoreHi];
 
@@ -866,7 +937,7 @@ s.waitForBoot {
 
 		// flicker randomly
 		if( waitTime > struikelThreshold and: {0.02.coin}, {
-			"Flicker".postln;
+			// "Flicker".postln;
 			from = from.blend(Color.white,0.8);
 		});
 
@@ -892,6 +963,73 @@ s.waitForBoot {
 				};
 			}).start;
 		});
+	};
+
+	// play the sound on box change; Y = tuple[0], X = tuple[1]
+	fPlayMIDI = {
+		arg tuple, rgb, nbr;
+		var freq = [300, 300, 300], note = [60, 60, 60], sus, rel, lev, noteString;
+
+		// determine MIDI notes and some administration
+		freq = fFreqMap.value(rgb,tuple);
+		note = freq.cpsmidi.round(1);
+		lev = spec.lev.at(rgb);
+		noteString = "";
+		note.do { arg item, index;
+			if( (lev[index] > 0) || (rgb.sum == 0), {
+				noteString = ( if(noteString != "", { noteString ++ "\t\t" }, { "" }) ) ++ rgbLabel[index] ++ ": " ++ item.midiname ++ " ";
+				noteSet[index].add(item%12);
+				noteSetNumber[index][item%12] = noteSetNumber[index][item%12] + 1;
+			});
+		};
+		// noteString.postln;
+
+		// set sustain time depending on number of boxes
+		case
+		{ (nbr == (nbrX*nbrY)) && (nbr > 1) && (pitchWait == 1) }
+			{ sus = (2 + waitTime) * 0.5; rel =  (2 + waitTime) * 0.4 }
+		{ waitTime < speedThreshold }
+			{ sus = (spec.fastModulo.at(1/waitTime).floor) * waitTime * 0.7; rel = (spec.fastModulo.at(1/waitTime).floor) * waitTime * 0.2 }
+		{ nbr > ( synthSoundLimit[synthList.indexOf(rgbSynth)] / 1.5 ) }
+			{ sus = min(2,waitTime/2.5); rel = min(5,waitTime/1.5) }
+		{ true }
+			{ sus = min(2,waitTime/2); rel = min(5,waitTime) }
+		;
+
+		3.do { |index|
+			// start note only if not already playing
+			if( (midiNotes[index][note[index]] == 0) && ( (lev[index] > 0) || (rgb.sum == 0) ), {
+				// ("Starting note" + note[index] + "on channel" + index).postln;
+				~midiOut.noteOn(index, note[index], 127);
+				midiNotes[index][note[index]] = 1;
+				{
+					// ("Stopping note" + note[index] + "on channel" + index).postln;
+					~midiOut.noteOff(index, note[index], 127) ;
+					midiNotes[index][note[index]] = 0;
+				}.defer( (sus + rel) * 0.7 * midiNoteFactor);
+			})
+		};
+	};
+
+	fStopAllNotes = {
+		"Stop all notes".postln;
+		3.do { |index|
+			127.do { |note|
+				if(midiNotes[index][note]==1, {
+					// ("Stop note" + note + "on channel" + index).postln;
+					~midiOut.noteOff(index, note, 127);
+					midiNotes[index][note] = 0;
+				});
+			}
+		}
+	};
+
+	fCountMIDI = {
+		var count = Array.fill(3,0);
+		3.do { |index|
+			count[index] = midiNotes[index].sum;
+		};
+		("MIDI notes sounding:" + count).postln;
 	};
 
 	// play the sound on box change; Y = tuple[0], X = tuple[1]
@@ -951,7 +1089,42 @@ s.waitForBoot {
 	};
 
 	fScoreMode = { arg val;
+		var noteString, prevScoreMode;
+		prevScoreMode = scoreMode;
 		scoreMode = scoreModeList[val]; // set new score
+
+		// update cue window
+		if(showCueWindow, {
+			{ tCue.string = scoreMode }.defer;
+			cueBlinkTask = Task.new({
+				cueBlinkNumber.do {
+					{ tCue.background_(cueBlinkColor); tCue.stringColor_(cueBlinkTextColor); }.defer;
+					cueBlinkWait.wait;
+					{ tCue.background_(cueColor); tCue.stringColor_(cueTextColor); }.defer;
+					cueBlinkWait.wait;
+				}
+			}).start;
+		});
+
+		// print and reset noteSet
+		("\n# NoteSet " ++ prevScoreMode).postln;
+		3.do { arg channel;
+			noteString = "# " ++ rgbLabel[channel] ++ ": ";
+			if(noteSet[channel].size != 0, {
+				noteSet[channel].do { arg item, index;
+					noteString = if(noteString != "", { noteString }, { "" })
+					++ item.midiname.subStr(0, item.midiname.size - 3)
+					++ " (" ++ noteSetNumber[channel][item] ++ "x) ";
+				};
+				noteString.postln;
+			});
+		};
+		"".postln;
+		if(prevScoreMode != scoreMode, {
+			noteSet = {Set.new()}!3;
+			noteSetNumber = {Array.fill(12,0)}!3;
+		});
+
 		fExciterModeSetVars.value; // deal with exciterMode
 		("Mode changed to"+scoreMode).postln;
 		scoreModeChanged = 1; // indicate we just changed the score so we can have actions on score change in task
@@ -971,7 +1144,7 @@ s.waitForBoot {
 		});
 		if(mode == "GUI", {
 			if(valFade == 0, { fadeTime = waitTime / 2 },{ fadeTime = valFade });
-			if(waitTime > speedThreshold, { ("\tfadeTime set to"+fadeTime.round(0.0001)).postln });
+			// if(waitTime > speedThreshold, { ("\tfadeTime set to"+fadeTime.round(0.0001)).postln });
 			// shorten metaWait; note that this will only make it shorter, not reset to original value!
 			metaWait = metaWait * spec.metaWait[fadeTime];
 		});
@@ -990,53 +1163,89 @@ s.waitForBoot {
 	fKeyDown = {
 		arg modifiers, keycode;
 		// keycode.postln;
-		if(modifiers.isCmd && keycode == 3 /* apple-F */, { wBoxes.fullScreen });
-		if(keycode == 53 /* esc */, { wBoxes.endFullScreen });
-		if(modifiers.isCmd && (keycode == 12) /* apple-Q */, { 0.exit; "EXIT".postln; });
-		if(modifiers.isCmd && (keycode == 13) /* apple-W */, { "Closing window".postln; wBoxes.endFullScreen; wBoxes.close });
 
-		/* c */ 	if(keycode == 8, { changeAllOverride = 1 });
-		/* f */ 	if(keycode == 3, { fShuffleScore.value });
-		if(waitTimeOverride==0, {
-			/* s */ 	if(keycode == 1, { fSuperMode.value });
-			/* u */ 	if(keycode == 32, { fUltraMode.value });
-			/* e */ 	if(keycode == 14, { fExciterMode.value });
-		});
-		/* n */ 	if(keycode == 45, { metaJumpOut = 1; "Jump out meta loop for automatic mode".postln; });
-
-		/* b */ 	if(keycode == 11, { fClear.value("black",Color.black); } );
-		/* w */	 if(keycode == 13 && (modifiers == 0), { fClear.value("white",Color.white); } );
-		/* y */ 	if(keycode == 16, { metaCounter = 0; metaWait = 30 * fadeTime; fScoreMode.value(scoreModeList.indexOf(\yellow)) });
-
-		/* a */ 	if((keycode == 0) && (modifiers == 0), {
-			runAutomatic = (runAutomatic+1)%2;
-			if(runAutomatic==1,
-				{ "\n### Start running automatic".postln; taskMeta.start; fUpdateParams.value; },
-				{ "\n### Stop running automatic".postln; taskMeta.stop; fUpdateParams.value;
+		case
+		// Alt key
+		{ modifiers.isAlt } {
+		/* apple-number for presets */
+			switch(keycode,
+				18, { fScoreMode.value(scoreModeList.indexOf(\default)) },
+				19, { fScoreMode.value(scoreModeList.indexOf(\mellow)) },
+				20, { fScoreMode.value(scoreModeList.indexOf(\sequence)) },
+				21, { fScoreMode.value(scoreModeList.indexOf(\blackwhite)) },
+				23, { fScoreMode.value(scoreModeList.indexOf(\red)) },
+				22, { fScoreMode.value(scoreModeList.indexOf(\green)) },
+				26, { fScoreMode.value(scoreModeList.indexOf(\blue)) },
+				28, { fScoreMode.value(scoreModeList.indexOf(\yellow)) },
+				12, { fScoreMode.value(scoreModeList.indexOf(\lines)) },
+				13, { fScoreMode.value(scoreModeList.indexOf(\squares)) },
+				14, { fScoreMode.value(scoreModeList.indexOf(\single)) },
+				15, { fScoreMode.value(scoreModeList.indexOf(\greyscale)) },
+				17, { fScoreMode.value(scoreModeList.indexOf(\redFull)) },
+				16, { fScoreMode.value(scoreModeList.indexOf(\greenFull)) },
+				32, { fScoreMode.value(scoreModeList.indexOf(\blueFull)) },
+				34, { fScoreMode.value(scoreModeList.indexOf(\yellowFull)) }
+			);
+		}
+		// Command key
+		{ modifiers.isCmd } {
+			switch(keycode,
+				3, 	{ /* apple-F */ wBoxes.fullScreen },
+				12, 	{ /* apple-Q */ 0.exit; "EXIT".postln; },
+				13, 	{ /* apple-W */ "Closing window".postln; wBoxes.endFullScreen; wBoxes.close; },
+				35, 	{ /* apple-P */ fStopAllNotes.value() },
+			);
+		}
+		// others
+		{ true } {
+			/* esc */ if(keycode == 53, { wBoxes.endFullScreen; });
+			/* c */ 	if(keycode == 8, { changeAllOverride = 1 });
+			/* x */ 	if(keycode == 7, { changeBlocksOverride = changeBlocksOverride.not });
+			/* z */ 	if(keycode == 6, { changeSingleOverride = changeSingleOverride.not });
+			/* f */ 	if(keycode == 3, { fShuffleScore.value });
+			if(waitTimeOverride==0, {
+				/* s */ 	if(keycode == 1, { fSuperMode.value });
+				/* u */ 	if(keycode == 32, { fUltraMode.value });
+				/* e */ 	if(keycode == 14, { fExciterMode.value });
 			});
-		});
+			/* n */ 	if(keycode == 45, { metaJumpOut = 1; "Jump out meta loop for automatic mode".postln; });
+			/* b */ 	if(keycode == 11, { fClear.value("black",Color.black); } );
+			/* w */	 if(keycode == 13 && (modifiers == 0), { fClear.value("white",Color.white); } );
+			/* y */ 	if(keycode == 16, { metaCounter = 0; metaWait = 30 * fadeTime; fScoreMode.value(scoreModeList.indexOf(\yellow)) });
+			/* a */ 	if((keycode == 0) && (modifiers == 0), {
+				runAutomatic = (runAutomatic+1)%2;
+				if(runAutomatic==1,
+					{ "\n### Start running automatic".postln; taskMeta.start; fUpdateParams.value; },
+					{ "\n### Stop running automatic".postln; taskMeta.stop; fUpdateParams.value;
+				});
+			});
+			/* d */ 	if(keycode == 2, { doubleOverride = 1 } );
+			/* r */ 	if(keycode == 15, { fTaskMain.value() } );
+			/* t */ 	if(keycode == 17, { ("### The current time is" + second.asTimeStringHM).postln } );
+			/* o */ 	if(keycode == 31, { "Watermark override".postln; watermarkOverride = 1; {watermarkOverride = 0}.defer(3) } );
+			/* p */ 	if(keycode == 35, {
+				showParams = (showParams+1)%3;
+				case
+				{ showParams == 0 } { tParamsBoxes.visible = false }
+				{ showParams == 1 } { tParamsBoxes.visible = true; tParamsBoxes.stringColor = Color.white }
+				{ showParams == 2 } { tParamsBoxes.visible = true; tParamsBoxes.stringColor = Color.black }
+				;
+			});
+			/* i */ if(keycode == 34, {
+				var img = Image.fromWindow(wBoxes);
+				img.write(dataDir++"Saved Images/Point-to-Organ"++Date.getDate.stamp++".png");
+			});
+			/* l */ 	if(keycode == 37, {
+				live = (live+1)%3;
+				fSetGui.value;
+			} );
+			/* 1 */ 	if(keycode == 18, { fRandom.value() } );
+			/* m */ 	if(keycode == 46, { fCountMIDI.value() } );
+			/* k */ 	if(keycode == 40, { "Clock stopped and reset".postln; taskClock.stop; second = 0; } );
+		}
+		;
 
-		/* d */ 	if(keycode == 2, { doubleOverride = 1 } );
-		/* r */ 	if(keycode == 15, { fTaskMain.value() } );
-		/* t */ 	if(keycode == 17, { ("### The current time is" + second.asTimeStringHM).postln } );
-		/* o */ 	if(keycode == 31, { watermarkOverride = 1; {watermarkOverride = 0}.defer(3) } );
-		/* p */ 	if(keycode == 35, {
-			showParams = (showParams+1)%3;
-			case
-			{ showParams == 0 } { tParamsBoxes.visible = false }
-			{ showParams == 1 } { tParamsBoxes.visible = true; tParamsBoxes.stringColor = Color.white }
-			{ showParams == 2 } { tParamsBoxes.visible = true; tParamsBoxes.stringColor = Color.black }
-			;
-		});
-		/* i */ if(keycode == 34, {
-			var img = Image.fromWindow(wBoxes);
-			img.write(dataDir++"Saved Images/Point-to-Line"++Date.getDate.stamp++".png");
-		});
-		/* l */ 	if(keycode == 37, {
-			live = (live+1)%3;
-			fSetGui.value;
-		} );
-		/* 1 */ 	if(keycode == 18, { fRandom.value() } );
+
 	};
 
 	fSuperMode = {
@@ -1211,6 +1420,7 @@ s.waitForBoot {
 			taskMeta.stop;
 			taskMain.stop;
 			taskClock.stop;
+			fStopAllNotes.value();
 		}
 		{ mode==\stop }
 		{
@@ -1219,6 +1429,7 @@ s.waitForBoot {
 			taskMeta.stop;
 			taskMain.stop;
 			taskClock.stop;
+			fStopAllNotes.value();
 			{
 				second = 0;
 				fClear.value("black",Color.black);
@@ -1234,6 +1445,7 @@ s.waitForBoot {
 			"\n### TaskMain paused".postln;
 			taskMainRunning = 0;
 			taskMain.pause;
+			fStopAllNotes.value();
 			fYellowButtonTimeOut.value(\reset);
 		}
 		{ taskMainRunning == 0 }
@@ -1248,6 +1460,7 @@ s.waitForBoot {
 			taskClock.start; // start the clock
 			if(setLength > 0, {  ("### Length set to:" + setLength.asTimeStringHM).postln });
 			fYellowButtonTimeOut.value(\snooze);
+			fShowKeyShortcuts.value;
 		}
 		;
 	};
@@ -1279,9 +1492,9 @@ s.waitForBoot {
 
 	// ------- tasks ------------------------------------------------------------------------------------
 
-	taskClock = Task.new {
+	taskClock = Task {
 		inf.do {
-			if(second%60 == 0, { ("### The current time is" + second.asTimeStringHM).postln });
+			if(second%30 == 0, { ("### The current time is" + second.asTimeStringHM).postln });
 			1.wait;
 			second = second + 1;
 			if(runAutomatic==0, { // only announce the end when not running automatic
@@ -1353,18 +1566,18 @@ s.waitForBoot {
 				if(waitTimeOverride == 2, { // just double'd once, do it again
 					waitTime = 0.5*waitTime;
 					waitTimeOverride = 1; // make sure we reset
-					("Double 2 ("++waitTime.round(0.01)++")").postln;
+					// ("Double 2 ("++waitTime.round(0.01)++")").postln;
 				}, {
 					if( (doubleskipchance*((k%200).linexp(0.0,199,1.0,2))).coin or: { doubleOverride==1 }, { // change on double or skip occuring
 						if(0.5.coin or: { doubleOverride==1 }, { // equal chance for double and skip
 							waitTimeOverride = 2;
 							waitTimeBeforeOverride = waitTime; waitTime = 0.5*waitTime;
-							("Double 1 ("++waitTime.round(0.01)++")").postln;
+							// ("Double 1 ("++waitTime.round(0.01)++")").postln;
 							doubleOverride = 0;
 						},{
 							waitTimeOverride = 1;
 							waitTimeBeforeOverride = waitTime; waitTime = 2*waitTime;
-							("Skip ("++waitTime.round(0.01)++")").postln;
+							// ("Skip ("++waitTime.round(0.01)++")").postln;
 						});
 						fadeTimeBeforeOverride = fadeTime; fadeTime = waitTime / 2;
 					});
@@ -1378,8 +1591,9 @@ s.waitForBoot {
 			// ("####### nbr of boxes to change"+nbr).postln;
 			nbr = min(nbr, 2000); // upperlimit to number of boxes to change
 
+			// change all boxes once
 			if(changeAllOverride == 1, {
-				"Force change all boxes".postln;
+				"Force change ## all boxes".postln;
 				nbr = (nbrX * nbrY);
 				tuples = [(0..(nbrY-1)), (0..(nbrX-1))].allTuples;
 				changeAllOverride = 0;
@@ -1401,6 +1615,8 @@ s.waitForBoot {
 
 			// re-order tuples; only the first 'nbr' will be changed
 			tuples = [(0..(nbrY-1)), (0..(nbrX-1))].allTuples;
+
+			// specific scoreMode code
 			case
 			{ scoreMode == \lines and: { nbr == min(nbrX,nbrY) } } // lines scoreMode
 			{
@@ -1425,7 +1641,8 @@ s.waitForBoot {
 				;
 				if(0.1.coin, { fClear.value("black",Color.black) });
 			}
-			{ focusGroup.notNil and: { nbr <= 4 } and: { 0.8.coin } and: { nbrX > 2 } and: { nbrY > 2 } } // focusGroup settings
+			{ changeBlocksOverride.not && changeSingleOverride.not &&
+				focusGroup.notNil and: { nbr <= 4 } and: { 0.8.coin } and: { nbrX > 2 } and: { nbrY > 2 } } // focusGroup settings
 			{
 				case
 				{ focusGroup == \right } { tuples.takeThese({ arg item, index; item[1] < (nbrX-2) }) }
@@ -1451,6 +1668,24 @@ s.waitForBoot {
 				tuplesDemo = tuplesDemo.rotate(-1);
 				if(scoreModeChanged == 1, { fClear.value("black",Color.black) });
 			}
+			{ changeBlocksOverride }
+			{
+				// change blocks
+				"Force change ## blocks of boxes".postln;
+				nbr = 4;
+				x = rand(nbrX-1); y = rand(nbrY-1);
+				tuples.takeThese({ arg item, index; (item!=[y,x]) && (item!=[y+1,x]) && (item!=[y,x+1]) && (item!=[y+1,x+1]) });
+				case
+				{ rand(2) == 0 } { tuples.add([y,(x+2)%nbrX]); nbr = 5; }
+				{ rand(2) == 0 } { tuples.add([(y+2)%nbrY,x]); nbr = 5; }
+				;
+			}
+			{ changeSingleOverride }
+			{
+				// change blocks
+				"Force change ## 1 or 2 boxes".postln;
+				nbr = [1,2].choose;
+			}
 			;
 			// randomly scramble all tuples
 			if([\single,\demo].indexOf(scoreMode).isNil, {
@@ -1458,7 +1693,7 @@ s.waitForBoot {
 			});
 
 			// sometimes clear to black
-			if( scoreModeChanged == 1 and: { 0.1.coin }, { fClear.value("black",Color.black) });
+			if( randomClearToBlack and: { scoreModeChanged == 1 } and: { 0.1.coin }, { fClear.value("black",Color.black) });
 
 			// select next lo and hi threshold arrays from the color score
 			lo = colorScore[1][k%(colorScore[1].size)];
@@ -1490,6 +1725,10 @@ s.waitForBoot {
 				if( soundOn == 1 and: { i < nbrSoundLimit }, {
 					if( playSound==1 or: {k%(spec.fastModulo.at(1/waitTime).floor)==0}, { fPlaySynth.value(tuples[i],rgb,nbr) });
 				});
+				// play MIDI
+				if( midiOn == 1 and: { i < nbrMIDILimit }, {
+					if( playSound==1 or: {k%(spec.fastModulo.at(1/waitTime).floor)==0}, { fPlayMIDI.value(tuples[i],rgb,nbr) });
+				});
 				// display something in boxes
 				if(displayBoxText == 1, {
 					{ boxText[tuples[i][0]][tuples[i][1]].string = i }.defer;
@@ -1500,6 +1739,7 @@ s.waitForBoot {
 				// reset alphaValue
 				if(noiseChance > 0, { alphaValue = 1});
 			};
+			// fCountMIDI.value();
 
 			// if(waitTime > pitchThreshold, { ("Number of synths:" + synthCount).postln });
 
@@ -1516,7 +1756,7 @@ s.waitForBoot {
 				waitTime = waitTimeBeforeOverride;
 				fadeTime = fadeTimeBeforeOverride;
 				waitTimeOverride = 0;
-				"Reset double / skip".postln;
+				// "Reset double / skip".postln;
 				fUpdateParams.value; // update GUI
 			});
 			// wait some more if all boxes changed
@@ -1536,87 +1776,98 @@ s.waitForBoot {
 
 	MIDIIn.connectAll;
 
+	// keep device id of ICON to filter below
+	iconID = MIDIout.new().getIDs()[4];
+
 	MIDIdef.noteOn(\noteOn, {
-		arg val, num, chan;
+		arg val, num, chan, src;
 		// [chan, num, val].postln;
+		// only if coming from ICON
+		if(src==iconID, {
+			if(waitTimeOverride==0, { // only do when not in doubleskip mode
+				if(num == 21, { { fSuperMode.value }.defer } );
+				if(num == 24, { { fUltraMode.value }.defer } );
+				if(num == 22, { { fExciterMode.value }.defer } );
+			});
+			if(num == 20, { changeAllOverride = 1 });
+			if(num == 23, { fShuffleScore.value });
+			if(num == 25, { fTaskMain.value });
 
-		if(waitTimeOverride==0, { // only do when not in doubleskip mode
-			if(num == 21, { { fSuperMode.value }.defer } );
-			if(num == 24, { { fUltraMode.value }.defer } );
-			if(num == 22, { { fExciterMode.value }.defer } );
-		});
-		if(num == 20, { changeAllOverride = 1 });
-		if(num == 23, { fShuffleScore.value });
-		if(num == 25, { fTaskMain.value });
+			if(num == 60, { fScoreMode.value(scoreModeList.indexOf(\default)) } );
+			if(num == 61, { fScoreMode.value(scoreModeList.indexOf(\mellow)) } );
+			if(num == 62, { fScoreMode.value(scoreModeList.indexOf(\sequence)) } );
+			if(num == 63, { fScoreMode.value(scoreModeList.indexOf(\blackwhite)) } );
 
-		if(num == 60, { fScoreMode.value(scoreModeList.indexOf(\default)) } );
-		if(num == 61, { fScoreMode.value(scoreModeList.indexOf(\mellow)) } );
-		if(num == 62, { fScoreMode.value(scoreModeList.indexOf(\sequence)) } );
-		if(num == 63, { fScoreMode.value(scoreModeList.indexOf(\blackwhite)) } );
+			if(num == 64, { fClear.value("black",Color.black) } );
 
-		if(num == 64, { fClear.value("black",Color.black) } );
+			if(num == 65, { fScoreMode.value(scoreModeList.indexOf(\red)) } );
+			if(num == 66, { fScoreMode.value(scoreModeList.indexOf(\green)) } );
+			if(num == 67, { fScoreMode.value(scoreModeList.indexOf(\blue)) } );
+			if(num == 68, { fScoreMode.value(scoreModeList.indexOf(\yellow)) } );
 
-		if(num == 65, { fScoreMode.value(scoreModeList.indexOf(\red)) } );
-		if(num == 66, { fScoreMode.value(scoreModeList.indexOf(\green)) } );
-		if(num == 67, { fScoreMode.value(scoreModeList.indexOf(\blue)) } );
-		if(num == 68, { fScoreMode.value(scoreModeList.indexOf(\yellow)) } );
+			if(num == 48, { fScoreMode.value(scoreModeList.indexOf(\lines)) } );
+			if(num == 49, { fScoreMode.value(scoreModeList.indexOf(\squares)) } );
+			if(num == 50, { fScoreMode.value(scoreModeList.indexOf(\single)) } );
+			if(num == 51, { fScoreMode.value(scoreModeList.indexOf(\greyscale)) } );
 
-		if(num == 48, { fScoreMode.value(scoreModeList.indexOf(\lines)) } );
-		if(num == 49, { fScoreMode.value(scoreModeList.indexOf(\squares)) } );
-		if(num == 50, { fScoreMode.value(scoreModeList.indexOf(\single)) } );
-		if(num == 51, { fScoreMode.value(scoreModeList.indexOf(\greyscale)) } );
+			if(num == 52, { fClear.value("white",Color.white) });
 
-		if(num == 52, { fClear.value("white",Color.white) });
+			if(num == 53, { fScoreMode.value(scoreModeList.indexOf(\redFull)) } );
+			if(num == 54, { fScoreMode.value(scoreModeList.indexOf(\greenFull)) } );
+			if(num == 55, { fScoreMode.value(scoreModeList.indexOf(\blueFull)) } );
+			if(num == 56, { fScoreMode.value(scoreModeList.indexOf(\yellowFull)) } );
 
-		if(num == 53, { fScoreMode.value(scoreModeList.indexOf(\redFull)) } );
-		if(num == 54, { fScoreMode.value(scoreModeList.indexOf(\greenFull)) } );
-		if(num == 55, { fScoreMode.value(scoreModeList.indexOf(\blueFull)) } );
-		if(num == 56, { fScoreMode.value(scoreModeList.indexOf(\yellowFull)) } );
-
-		if(num == 0, {
-			runAutomatic = (runAutomatic+1)%2;
-			if(runAutomatic==1, {
-				"\n### Start running automatic".postln;
-				pScoreMode.visible = false;
-				taskMeta.start;
-				fUpdateParams.value;
-			}, {
-				"\n### Stop running automatic".postln;
-				pScoreMode.visible = true;
-				taskMeta.stop;
-				fUpdateParams.value;
+			if(num == 0, {
+				runAutomatic = (runAutomatic+1)%2;
+				if(runAutomatic==1, {
+					"\n### Start running automatic".postln;
+					pScoreMode.visible = false;
+					taskMeta.start;
+					fUpdateParams.value;
+				}, {
+					"\n### Stop running automatic".postln;
+					pScoreMode.visible = true;
+					taskMeta.stop;
+					fUpdateParams.value;
+				});
 			});
 		});
-
 	}).fix;
 
 	MIDIdef.noteOff(\noteOff, {
-		arg val, num;
-
+		arg val, num, chan, src;
+		// only if coming from ICON
+		if(src==iconID, {
+		});
 	}).fix;
 
 	MIDIdef.cc(\cc, {
-		arg val, num, chan;
+		arg val, num, chan, src;
 		// [chan, num, val].postln;
-		case
-		{ num == 1 } { sMainVol.valueAction_(val/127) }
-		{ num == 2 } { sRunOutVol.valueAction_(val/127) }
-		{ num == 3 } { sWaitTime.valueAction_(val/127) }
-		{ num == 4 } { sTimeFactor.valueAction_(val/127) }
-		{ num == 10 } {
-			var synth = val.linlin(0,127,0,synthList.size-0.1).floor;
-			{ if(pSynth.value != synth, { pSynth.valueAction = synth }) }.defer;
-		}
-		{ num == 11 } {
-			var map = val.linlin(0,127,0,synthFreqMaps.size-0.1).floor;
-			{ if(pFreqMap.value != map, { pFreqMap.valueAction = map }) }.defer;
-		}
-		;
+		// only if coming from ICON
+		if(src==iconID, {
+			case
+			{ num == 1 } { sMainVol.valueAction_(val/127) }
+			{ num == 2 } { sRunOutVol.valueAction_(val/127) }
+			{ num == 3 } { sWaitTime.valueAction_(val/127) }
+			{ num == 4 } { sTimeFactor.valueAction_(val/127) }
+			{ num == 8 } { midiNoteFactor = val / 127 }
+			{ num == 9 && val == 127 } { fStopAllNotes.value() }
+			{ num == 10 } {
+				var synth = val.linlin(0,127,0,synthList.size-0.1).floor;
+				{ if(pSynth.value != synth, { pSynth.valueAction = synth }) }.defer;
+			}
+			{ num == 11 } {
+				var map = val.linlin(0,127,0,synthFreqMaps.size-0.1).floor;
+				{ if(pFreqMap.value != map, { pFreqMap.valueAction = map }) }.defer;
+			}
+			;
+		});
 	}).fix;
 
 	// ------- GUI part 2 config window ------------------------------------------------------------------------------------
 
-	wConfig = Window.new("Point-to-Line Config",
+	wConfig = Window.new("Point-to-Organ Config",
 		Rect(40,Window.screenBounds.height - 720 + 435,800,650-435));
 
 	lScoreMode = (StaticText(wConfig, Rect(10,20,80,80)).font_(Font("Avenir",12)).string_("ScoreMode:  ")).align_(\right);
@@ -1768,6 +2019,32 @@ s.waitForBoot {
 		fKeyDown.value(modifiers, keycode);
 	};
 
+	// ------- GUI part 3 cue window ------------------------------------------------------------------------------------
+
+	if(showCueWindow, {
+		wCue = Window.new("Cues", Rect(0 - leftCueSubtract, 0 - topSubtract, 1020, 750));
+		lCue = (StaticText(wCue, Rect(20, 20, 980, 100))
+			.font_(Font(Font.default, 20))
+			.string_("[ Point-to-Organ ]")
+			.align_(\center)
+		);
+		tCue = (StaticText(wCue, Rect(20, 120, 980, 400))
+			.font_(Font(Font.default, 150))
+			.stringColor_(cueTextColor)
+			.string_("---")
+			.align_(\center)
+			.background_(cueColor)
+		);
+		wCue.view.keyDownAction = {
+			arg view, char, modifiers, unicode, keycode;
+			fKeyDown.value(modifiers, keycode);
+		};
+		wCue.onClose = {
+			showCueWindow = false;
+			cueBlinkTask.stop;
+		};
+	});
+
 
 	// ------- GUI part 4 on close ------------------------------------------------------------------------------------
 
@@ -1775,6 +2052,7 @@ s.waitForBoot {
 		fTaskMain.value(\kill); // stop all tasks
 		taskAlpha.stop; taskArduino.stop;
 		wConfig.close;
+		if(showCueWindow, { wCue.close });
 		MIDIdef.freeAll;
 		exciterClock.clear;
 		fYellowButtonTimeOut.value(\reset);
@@ -1782,7 +2060,10 @@ s.waitForBoot {
 		{ main.release; synth.release; main.free; synth.free; }.defer(3);
 	};
 
-	wConfig.onClose = { wBoxes.close };
+	wConfig.onClose = {
+		wBoxes.close;
+		if(showCueWindow, { wCue.close });
+	};
 
 	// ------- initialize ------------------------------------------------------------------------------------
 
@@ -1798,11 +2079,13 @@ s.waitForBoot {
 	runoutSynth = Synth(\runout, [\runOutBus, runOutBus.index], target: synth);
 
 	wDummy = Window("dummy").front.close;
-	if(showConfigWindow == 1, { wConfig.front });
+	if(showConfigWindow, { wConfig.front });
+	if(showCueWindow, { wCue.front });
 	wBoxes.front;
 
 	fSetGui.value;
 	if(startTaskMain == 1, { fTaskMain.value() });
+	fShowKeyShortcuts.value;
 }
 )
 
