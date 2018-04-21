@@ -38,16 +38,16 @@ s.waitForBoot {
 	// screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = screenHeight, leftSubtract = 0;
 	// // screenWidth = 1280, screenHeight = 800, nbrX = 7, nbrY = 4, nbrXalt = 35, nbrYalt = 20, topSubtract = screenHeight, leftSubtract = 0;
 
-	// var // 1280 x 800 (laptop) (8 x 5) as presentation screen on main screen
-	// // screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = 0, leftSubtract = 0;
-	// // smaller version:
-	// screenWidth = 1280, screenHeight = 450, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -50, leftSubtract = 200;
+	var // 1280 x 800 (laptop) (8 x 5) as presentation screen on main screen
+	// screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = 0, leftSubtract = 0;
+	// smaller version:
+	screenWidth = 1280, screenHeight = 450, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -50, leftSubtract = 200;
 
 	// var // 1920 x 1080 (16 x 9) as presentation screen placed below main screen 7 x 4 ------ beamer STEIM
 	// screenWidth = 1920, screenHeight = 1080, nbrX = 7, nbrY = 4, nbrXalt = 70, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
-	var // 1024 x 768 (8 x 5) as presentation screen placed below main screen ----- beamer Orgelpark
-	screenWidth = 1024, screenHeight = 768, nbrX = 8, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
+	// var // 1024 x 768 (8 x 5) as presentation screen placed below main screen ----- beamer Orgelpark
+	// screenWidth = 1024, screenHeight = 768, nbrX = 8, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
 	var leftCueSubtract = 700;
 
@@ -166,17 +166,34 @@ s.waitForBoot {
 	// 	15 red & slow
 	// 	16 sometimes clear to black"
 	// ];
-	var setlist = ["Setlist Orgelpark:",
-		"1. red # 0:00
-2. green # 1:30
-3. blueFull # 2:30
-4. mellow met blokken # 3:30
-5. single # 5:30
-6. blackwhite short Sauer notes # 7:00" ,
-		"7. greyscale no synthesis # 8:30
-8. lines # 10:00
-9. yellowFull speed up system # 12:00
-10. red slow down, black out, spread out"
+
+	// var setlist = ["Orgelpark setlist:",
+	// 	"1. red # 0:00
+	// 	2. green # 1:30
+	// 	3. blueFull # 2:30
+	// 	4. mellow met blokken # 3:30
+	// 	5. single # 5:30
+	// 	6. blackwhite short Sauer notes # 7:00" ,
+	// 	"7. greyscale no synthesis # 8:30
+	// 	8. lines # 10:00
+	// 	9. yellowFull speed up system # 12:00
+	// 	10. red slow down, black out, spread out"
+	// ];
+
+	var setlist = ["Shortcuts:","R: Run/stop
+A: Automatic
+F: Shuffle score
+L: Switch live modes
+K: Stop and reset clock
+Z: Force change 1 or 2 boxes
+X: Force change block of boxes
+C: Force change all boxes","S: SuperMode
+U: UltraMode
+E: ExciterMode
+N: Next scoreMode in automatic
+D: Double/half override
+Cmd-P: MIDI panic: stop all
+Alt 1 .. 8 and Q .. I: load presets"
 	];
 
 	var spec = (
@@ -1164,6 +1181,10 @@ Alt 1 .. 8 and Q .. I: load presets\n
 		arg modifiers, keycode;
 		// keycode.postln;
 
+		// esc
+		if(keycode == 53, {
+			 fStopAllNotes.value();
+		});
 		case
 		// Alt key
 		{ modifiers.isAlt } {
