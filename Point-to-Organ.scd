@@ -27,7 +27,7 @@ s.waitForBoot {
 
 	// ------- configuration variables ------------------------------------------------------------------------------------
 
-	// var // 1280 x 1024 (5 x 4) as presentation screen placed below main screen
+	// var // 1280 x 1024 (7 x 5) as presentation screen placed below main screen
 	// screenWidth = 1280, screenHeight = 1024, nbrX = 7, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
 	// var // 1280 x 1024 (5 x 4) as presentation screen on main screen
@@ -38,16 +38,16 @@ s.waitForBoot {
 	// screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = screenHeight, leftSubtract = 0;
 	// // screenWidth = 1280, screenHeight = 800, nbrX = 7, nbrY = 4, nbrXalt = 35, nbrYalt = 20, topSubtract = screenHeight, leftSubtract = 0;
 
-	var // 1280 x 800 (laptop) (8 x 5) as presentation screen on main screen
-	// screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = 0, leftSubtract = 0;
-	// smaller version:
-	screenWidth = 1280, screenHeight = 450, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -50, leftSubtract = 200;
+	// var // 1280 x 800 (laptop) (8 x 5) as presentation screen on main screen
+	// // screenWidth = 1280, screenHeight = 800, nbrX = 8, nbrY = 5, nbrXalt = 48, nbrYalt = 30, topSubtract = 0, leftSubtract = 0;
+	// // smaller version:
+	// screenWidth = 1280, screenHeight = 450, nbrX = 7, nbrY = 4, nbrXalt = 42, nbrYalt = 24, topSubtract = -50, leftSubtract = 200;
 
 	// var // 1920 x 1080 (16 x 9) as presentation screen placed below main screen 7 x 4 ------ beamer STEIM
 	// screenWidth = 1920, screenHeight = 1080, nbrX = 7, nbrY = 4, nbrXalt = 70, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
-	// var // 1024 x 768 (8 x 5) as presentation screen placed below main screen ----- beamer Orgelpark
-	// screenWidth = 1024, screenHeight = 768, nbrX = 8, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
+	var // 1024 x 768 (8 x 5) as presentation screen placed below main screen ----- beamer Orgelpark
+	screenWidth = 1024, screenHeight = 768, nbrX = 8, nbrY = 5, nbrXalt = 50, nbrYalt = 40, topSubtract = screenHeight, leftSubtract = 0;
 
 	var leftCueSubtract = 700;
 
@@ -84,7 +84,8 @@ s.waitForBoot {
 	synthPitchShift = [1,1,1,1,1], // 1=apply pitchshift when all boxes are changing
 	synthFreqMaps = [\uniform,\spread,\spreadNarrow], // mappings selecting spec.freq
 	scoreModeList = [\default, \red, \green, \blue, \yellow, \redFull, \greenFull, \blueFull, \yellowFull, \blackwhite, \greyscale, \sequence, \lines,\mellow,\squares,\single, \demo],
-	scoreModeWeight = [ 1, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5, 0.6, 0].normalizeSum,
+	scoreModeWeight = [ 0.6, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.6, 0.6, 0, 0.6, 0.6, 0.6, 0.6, 0].normalizeSum,
+	// scoreModeWeight = [ 1, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5, 0.6, 0].normalizeSum,
 	scoreModeLengthDefault = [ 1, 0.5, 0.5, 0.5, 0.3, 0.6, 0.6, 0.6, 0.4, 0.4, 0.5, 0.5, 0.5, 0.8, 0.5, 0.4, 1 ],
 	dataDir = Document.dir++"Point-to-Organ/Data/",
 	// display -------
@@ -100,7 +101,7 @@ s.waitForBoot {
 	displayBoxText = 0, // set to 1 to display numbers in order in which the boxes change for testing
 	// defaults per view -------
 	// rgbSynth = \threeSines, synthFreqMap = \spread, runAutomatic = 1, waitTime = 2, // view 1
-	rgbSynth = \threeTris, synthFreqMap = \spreadNarrow, runAutomatic = 0, waitTime = 3, // view 2
+	rgbSynth = \threeTris, synthFreqMap = \spreadNarrow, runAutomatic = 1, waitTime = 3, // view 2
 	// rgbSynth = \threeSines, synthFreqMap = \spreadNarrow, runAutomatic = 1, waitTime = 2, // view 3
 	// rgbSynth = \threeSines, synthFreqMap = \spreadNarrow, runAutomatic = 0, waitTime = 2, // live
 	// other defaults -------
@@ -2088,7 +2089,7 @@ Alt 1 .. 8 and Q .. I: load presets\n
 
 	// ------- initialize ------------------------------------------------------------------------------------
 
-	sMainVol.valueAction_(0.5);
+	sMainVol.valueAction_(0.6);
 	sRunOutVol.valueAction_(0.5);
 	sWaitTime.valueAction_(spec.wait.asSpec.unmap(waitTime));
 	sTimeFactor.valueAction_(spec.timeFactor.asSpec.unmap(timeFactor));
