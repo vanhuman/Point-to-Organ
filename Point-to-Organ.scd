@@ -1799,7 +1799,7 @@ Alt 1 .. 8 and Q .. I: load presets\n
 	MIDIIn.connectAll;
 
 	// keep device id of ICON to filter below
-	iconID = MIDIout.new().getIDs()[4];
+	iconID = SetMIDIOut.new().getIDs()[4];
 
 	MIDIdef.noteOn(\noteOn, {
 		arg val, num, chan, src;
